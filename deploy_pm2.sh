@@ -46,7 +46,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Install system dependencies
 print_status "Installing system dependencies..."
-sudo apt install -y python3 python3-pip python3-venv git curl wget nodejs npm
+sudo apt install -y python3 python3-pip python3-venv git curl wget
 
 # Install PM2 globally
 print_status "Installing PM2..."
