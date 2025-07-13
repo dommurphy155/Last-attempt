@@ -14,7 +14,7 @@ def test_imports():
     
     required_modules = [
         'requests',
-        'beautifulsoup4',
+        'bs4',
         'pandas',
         'numpy',
         'ta',
