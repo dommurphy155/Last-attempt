@@ -37,6 +37,13 @@ LimitNOFILE=65536
 MemoryMax=1G
 CPUQuota=200%
 
+# Health check
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitBurst=5
+StartLimitInterval=60
+
 # Environment variables (set these via systemctl set-environment or drop-in files)
 # Environment=HUGGINGFACE_API_KEY=your_key_here
 # Environment=TELEGRAM_BOT_TOKEN=your_token_here

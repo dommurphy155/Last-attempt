@@ -631,6 +631,7 @@ async def async_main():
     try:
         # Create and start the trading bot
         bot = TradingBot()
+        main.bot = bot  # Store reference for signal handler
         
         # Create tasks list
         tasks = []
@@ -662,11 +663,15 @@ def main():
     try:
         # Set up signal handlers for graceful shutdown
         def signal_handler(signum, frame):
-            logger.info("Received shutdown signal")
+            logger.info(f"Received shutdown signal {signum}")
+            # Graceful shutdown
+            if hasattr(main, 'bot') and main.bot:
+                main.bot.stop()
             sys.exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGHUP, signal_handler)  # For systemd reload
         
         # Run the async main function
         asyncio.run(async_main())

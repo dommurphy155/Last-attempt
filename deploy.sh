@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AI Forex Trading Bot Deployment Script
-# For Ubuntu 20.04 with Python 3.8.10
+# For Ubuntu 20.04+ with Python 3.8.10+ and systemd
 
 set -e  # Exit on any error
 
@@ -41,8 +41,8 @@ fi
 # Check Ubuntu version (if lsb_release is available)
 if command -v lsb_release &> /dev/null; then
     UBUNTU_VERSION=$(lsb_release -rs)
-    if [[ "$UBUNTU_VERSION" != "20.04" && "$UBUNTU_VERSION" != "22.04" ]]; then
-        print_warning "This script is designed for Ubuntu 20.04/22.04. You're running Ubuntu $UBUNTU_VERSION"
+    if [[ "$UBUNTU_VERSION" != "20.04" && "$UBUNTU_VERSION" != "22.04" && "$UBUNTU_VERSION" != "24.04" ]]; then
+        print_warning "This script is designed for Ubuntu 20.04/22.04/24.04. You're running Ubuntu $UBUNTU_VERSION"
     fi
 else
     print_warning "lsb_release not available, skipping Ubuntu version check"
@@ -60,7 +60,7 @@ else
 
     # Install system dependencies
     print_status "Installing system dependencies..."
-    sudo apt install -y python3 python3-pip python3-venv git curl wget
+    sudo apt install -y python3 python3-pip python3-venv git curl wget jq bc
 fi
 
 # Check Python version
@@ -133,145 +133,51 @@ else
     sudo tee /etc/systemd/system/forex-bot.service > /dev/null << EOF
 [Unit]
 Description=AI Forex Trading Bot
-After=network.target
+Documentation=https://github.com/your-repo/ai-forex-trading-bot
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=$USER
+Group=$USER
 WorkingDirectory=$(pwd)
 Environment=PATH=$(pwd)/venv/bin
+Environment=PYTHONPATH=$(pwd)
+Environment=PYTHONUNBUFFERED=1
 ExecStart=$(pwd)/venv/bin/$PYTHON_CMD trading_bot.py
+ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
 RestartSec=10
+StartLimitBurst=5
+StartLimitInterval=60
+
+# Logging configuration
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=forex-bot
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$(pwd)/logs $(pwd)/data $(pwd)/bot_state.json $(pwd)/trading_log.json $(pwd)/error_log.json
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=1G
+CPUQuota=200%
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
+    # Reload systemd daemon
+    sudo systemctl daemon-reload
+    print_success "Systemd service file created and daemon reloaded"
 fi
-
-# Create startup script
-print_status "Creating startup script..."
-cat > start_bot.sh << EOF
-#!/bin/bash
-
-# AI Forex Trading Bot Startup Script
-
-# Check if .env file exists
-if [ ! -f .env ]; then
-    echo "❌ .env file not found!"
-    echo "Please copy .env.template to .env and fill in your API keys"
-    exit 1
-fi
-
-# Load environment variables
-export \$(cat .env | xargs)
-
-# Start the bot
-echo "🤖 Starting AI Forex Trading Bot..."
-$PYTHON_CMD trading_bot.py
-EOF
-
-chmod +x start_bot.sh
-
-# Create stop script
-print_status "Creating stop script..."
-cat > stop_bot.sh << 'EOF'
-#!/bin/bash
-
-# AI Forex Trading Bot Stop Script
-
-echo "🛑 Stopping AI Forex Trading Bot..."
-
-# Stop systemd service if running
-sudo systemctl stop forex-bot 2>/dev/null || true
-
-# Kill any running bot processes
-pkill -f "python trading_bot.py" 2>/dev/null || true
-
-echo "✅ Bot stopped"
-EOF
-
-chmod +x stop_bot.sh
-
-# Create status script
-print_status "Creating status script..."
-cat > status_bot.sh << 'EOF'
-#!/bin/bash
-
-# AI Forex Trading Bot Status Script
-
-echo "📊 AI Forex Trading Bot Status"
-echo "=============================="
-
-# Check if service is running
-if systemctl is-active --quiet forex-bot; then
-    echo "✅ Service: RUNNING"
-else
-    echo "❌ Service: STOPPED"
-fi
-
-# Check if process is running
-if pgrep -f "python trading_bot.py" > /dev/null; then
-    echo "✅ Process: RUNNING"
-else
-    echo "❌ Process: STOPPED"
-fi
-
-# Show recent logs
-echo ""
-echo "📝 Recent Logs:"
-tail -n 10 trading_bot.log 2>/dev/null || echo "No logs found"
-EOF
-
-chmod +x status_bot.sh
-
-# Create monitoring script
-print_status "Creating monitoring script..."
-cat > monitor_bot.sh << 'EOF'
-#!/bin/bash
-
-# AI Forex Trading Bot Monitoring Script
-
-echo "🔍 AI Forex Trading Bot Monitor"
-echo "==============================="
-
-while true; do
-    clear
-    echo "$(date)"
-    echo "==============================="
-    
-    # Check service status
-    if systemctl is-active --quiet forex-bot; then
-        echo "✅ Service: RUNNING"
-    else
-        echo "❌ Service: STOPPED"
-    fi
-    
-    # Check process
-    if pgrep -f "python trading_bot.py" > /dev/null; then
-        echo "✅ Process: RUNNING"
-        PID=$(pgrep -f "python trading_bot.py")
-        echo "📊 PID: $PID"
-        
-        # Show memory usage
-        MEMORY=$(ps -o rss= -p $PID 2>/dev/null | awk '{print $1/1024 " MB"}' || echo "N/A")
-        echo "💾 Memory: $MEMORY"
-    else
-        echo "❌ Process: STOPPED"
-    fi
-    
-    # Show recent logs
-    echo ""
-    echo "📝 Recent Logs:"
-    tail -n 5 trading_bot.log 2>/dev/null || echo "No logs found"
-    
-    echo ""
-    echo "Press Ctrl+C to exit"
-    sleep 5
-done
-EOF
-
-chmod +x monitor_bot.sh
 
 # Create backup script
 print_status "Creating backup script..."
@@ -288,7 +194,6 @@ echo "💾 Creating backup in $BACKUP_DIR..."
 # Backup important files
 cp -r *.py "$BACKUP_DIR/"
 cp -r *.json "$BACKUP_DIR/" 2>/dev/null || true
-cp -r *.log "$BACKUP_DIR/" 2>/dev/null || true
 cp requirements.txt "$BACKUP_DIR/"
 cp README.md "$BACKUP_DIR/"
 
@@ -305,7 +210,7 @@ echo "   cp .env.template .env"
 echo "   nano .env"
 echo ""
 echo "2. Test the installation:"
-echo "   python -c \"import config, oanda_client, technical_analysis, news_sentiment, telegram_bot, trading_bot; print('All modules loaded successfully')\""
+echo "   $PYTHON_CMD -c \"import config, oanda_client, technical_analysis, news_sentiment, telegram_bot, trading_bot; print('All modules loaded successfully')\""
 echo ""
 echo "3. Start the bot:"
 echo "   ./start_bot.sh"
@@ -320,9 +225,9 @@ echo "6. Stop the bot:"
 echo "   ./stop_bot.sh"
 echo ""
 echo "📚 Available Scripts:"
-echo "   start_bot.sh    - Start the trading bot"
-echo "   stop_bot.sh     - Stop the trading bot"
-echo "   status_bot.sh   - Check bot status"
+echo "   start_bot.sh    - Start the trading bot (systemd)"
+echo "   stop_bot.sh     - Stop the trading bot (systemd)"
+echo "   status_bot.sh   - Check bot status and logs"
 echo "   monitor_bot.sh  - Real-time monitoring"
 echo "   backup_bot.sh   - Create backup"
 echo ""
@@ -331,5 +236,6 @@ echo "   sudo systemctl start forex-bot    - Start as service"
 echo "   sudo systemctl stop forex-bot     - Stop service"
 echo "   sudo systemctl status forex-bot   - Check service status"
 echo "   sudo systemctl enable forex-bot   - Enable auto-start"
+echo "   sudo journalctl -u forex-bot -f   - Follow logs"
 echo ""
 print_success "🎉 AI Forex Trading Bot is ready to use!"
