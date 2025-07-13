@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+THIS SHOULD BE A LINTER ERROR#!/usr/bin/env python3
 """
 Test script to verify AI Forex Trading Bot installation
 """

@@ -5,8 +5,8 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import logging
 from bs4 import BeautifulSoup
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-import torch
+# Removed: from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+# Removed: import torch
 from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from config import NEWS_SOURCES, SENTIMENT_MODELS, HUGGINGFACE_API_KEY, VOLATILITY_KEYWORDS
@@ -31,24 +31,8 @@ class NewsSentimentAnalyzer:
     
     def _initialize_sentiment_models(self):
         """Initialize sentiment analysis models"""
-        try:
-            # Try to load models from Hugging Face
-            if HUGGINGFACE_API_KEY:
-                for model_name in SENTIMENT_MODELS[:3]:  # Use first 3 models
-                    try:
-                        tokenizer = AutoTokenizer.from_pretrained(model_name)
-                        model = AutoModelForSequenceClassification.from_pretrained(model_name)
-                        self.sentiment_models[model_name] = pipeline(
-                            "sentiment-analysis",
-                            model=model,
-                            tokenizer=tokenizer
-                        )
-                        logger.info(f"Loaded sentiment model: {model_name}")
-                    except Exception as e:
-                        logger.warning(f"Failed to load model {model_name}: {e}")
-                        continue
-        except Exception as e:
-            logger.error(f"Error initializing sentiment models: {e}")
+        # Removed HuggingFace model loading for lightweight version
+        self.sentiment_models = {}
     
     def scrape_news_sources(self) -> List[Dict[str, Any]]:
         """Scrape news from all sources"""
@@ -130,19 +114,14 @@ class NewsSentimentAnalyzer:
         return unique_articles
     
     def analyze_sentiment(self, text: str) -> Dict[str, Any]:
-        """Analyze sentiment using multiple models"""
+        """Analyze sentiment using VADER and TextBlob only (lightweight)"""
         if not text or len(text) < 10:
             return {"sentiment": "neutral", "score": 0.0, "confidence": 0.0}
-        
-        # Clean and prepare text
         clean_text = sanitize_text(text)
         if len(clean_text) < 10:
             return {"sentiment": "neutral", "score": 0.0, "confidence": 0.0}
-        
-        # Use multiple sentiment analysis methods
         results = []
-        
-        # 1. VADER Sentiment
+        # VADER Sentiment
         try:
             vader_scores = self.vader_analyzer.polarity_scores(clean_text)
             vader_compound = vader_scores['compound']
@@ -153,8 +132,7 @@ class NewsSentimentAnalyzer:
             })
         except Exception as e:
             logger.error(f"VADER sentiment error: {e}")
-        
-        # 2. TextBlob
+        # TextBlob
         try:
             blob = TextBlob(clean_text)
             textblob_score = blob.sentiment.polarity
@@ -165,74 +143,14 @@ class NewsSentimentAnalyzer:
             })
         except Exception as e:
             logger.error(f"TextBlob sentiment error: {e}")
-        
-        # 3. Hugging Face Models
-        for model_name, model in self.sentiment_models.items():
-            try:
-                # Truncate text if too long
-                truncated_text = clean_text[:512] if len(clean_text) > 512 else clean_text
-                result = model(truncated_text)
-                
-                if isinstance(result, list) and len(result) > 0:
-                    result = result[0]
-                
-                if 'label' in result and 'score' in result:
-                    label = result['label'].lower()
-                    score = result['score']
-                    
-                    # Map labels to sentiment
-                    if 'positive' in label or 'bullish' in label:
-                        sentiment = "positive"
-                    elif 'negative' in label or 'bearish' in label:
-                        sentiment = "negative"
-                    else:
-                        sentiment = "neutral"
-                    
-                    results.append({
-                        "method": model_name,
-                        "score": score if sentiment == "positive" else -score,
-                        "sentiment": sentiment
-                    })
-            
-            except Exception as e:
-                logger.error(f"Hugging Face model {model_name} error: {e}")
-                continue
-        
-        # Combine results
+        # Combine results (average score, majority sentiment)
         if not results:
             return {"sentiment": "neutral", "score": 0.0, "confidence": 0.0}
-        
-        # Calculate weighted average
-        total_score = 0.0
-        total_weight = 0.0
-        
-        for result in results:
-            weight = 1.0
-            if result["method"] == "vader":
-                weight = 0.4
-            elif result["method"] == "textblob":
-                weight = 0.3
-            else:
-                weight = 0.3
-            
-            total_score += result["score"] * weight
-            total_weight += weight
-        
-        if total_weight > 0:
-            final_score = total_score / total_weight
-            final_sentiment = "positive" if final_score > 0.1 else "negative" if final_score < -0.1 else "neutral"
-            confidence = min(abs(final_score), 1.0)
-        else:
-            final_score = 0.0
-            final_sentiment = "neutral"
-            confidence = 0.0
-        
-        return {
-            "sentiment": final_sentiment,
-            "score": final_score,
-            "confidence": confidence,
-            "methods_used": len(results)
-        }
+        avg_score = sum(r["score"] for r in results) / len(results)
+        sentiments = [r["sentiment"] for r in results]
+        sentiment = max(set(sentiments), key=sentiments.count)
+        confidence = abs(avg_score)
+        return {"sentiment": sentiment, "score": avg_score, "confidence": confidence}
     
     def detect_volatility_keywords(self, text: str) -> Dict[str, Any]:
         """Detect volatility-inducing keywords"""
