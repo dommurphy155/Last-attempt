@@ -250,8 +250,12 @@ class TechnicalAnalyzer:
         if len(prices) < period:
             return 0.0
         
-        returns = [np.log(prices[i+1] / prices[i]) for i in range(len(prices) - 1)]
-        volatility = np.std(returns) * np.sqrt(252)  # Annualized
+        import math
+        returns = [math.log(prices[i+1] / prices[i]) for i in range(len(prices) - 1)]
+        # Calculate standard deviation manually
+        mean_return = sum(returns) / len(returns)
+        variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        volatility = math.sqrt(variance) * math.sqrt(252)  # Annualized
         return min(volatility, 1.0)
     
     def detect_trend_strength(self, prices: List[float], period: int = 20) -> Dict[str, any]:

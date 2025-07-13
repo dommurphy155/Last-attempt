@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Test script to verify AI Forex Trading Bot installation
 """
@@ -155,7 +155,6 @@ def test_technical_analysis():
     
     try:
         from technical_analysis import TechnicalAnalyzer
-        import numpy as np
         
         analyzer = TechnicalAnalyzer()
         
