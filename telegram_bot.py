@@ -454,6 +454,22 @@ class TelegramBot:
         except Exception as e:
             log_error("Failed to send Telegram notification", {"error": str(e)})
     
+    def send_notification_sync(self, message: str):
+        """Send notification to Telegram (synchronous wrapper for compatibility)"""
+        try:
+            if self.application:
+                # This is a fallback for synchronous contexts
+                # In the new async implementation, this should not be used
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(self.send_notification(message))
+                finally:
+                    loop.close()
+        except Exception as e:
+            log_error("Failed to send Telegram notification (sync)", {"error": str(e)})
+    
     async def send_trade_alert(self, trade_info: Dict[str, Any]):
         """Send trade alert to Telegram"""
         try:
@@ -468,6 +484,21 @@ class TelegramBot:
             
         except Exception as e:
             log_error("Failed to send trade alert", {"error": str(e)})
+    
+    def send_trade_alert_sync(self, trade_info: Dict[str, Any]):
+        """Send trade alert to Telegram (synchronous wrapper for compatibility)"""
+        try:
+            alert_message = f"🎯 TRADE ALERT!\n\n"
+            alert_message += f"📊 {trade_info.get('instrument', 'N/A')}\n"
+            alert_message += f"📈 {trade_info.get('side', 'N/A').upper()}\n"
+            alert_message += f"💰 {trade_info.get('units', 0)} units\n"
+            alert_message += f"💵 Price: {trade_info.get('price', 0)}\n"
+            alert_message += f"🎯 Confidence: {format_percentage(trade_info.get('confidence', 0) * 100)}"
+            
+            self.send_notification_sync(alert_message)
+            
+        except Exception as e:
+            log_error("Failed to send trade alert (sync)", {"error": str(e)})
     
     async def start_polling(self):
         """Start the bot polling"""

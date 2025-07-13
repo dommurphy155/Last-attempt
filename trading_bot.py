@@ -123,7 +123,7 @@ class TradingBot:
             log_error("Telegram bot start error", {"error": str(e)})
     
     def _run_trading_loop(self):
-        """Main trading loop"""
+        """Main trading loop (synchronous version)"""
         log_action("Starting main trading loop")
         
         # Schedule periodic tasks
@@ -150,6 +150,29 @@ class TradingBot:
             except Exception as e:
                 log_error("Trading loop error", {"error": str(e)})
                 time.sleep(5)  # Wait before retrying
+    
+    async def _run_trading_loop_async(self):
+        """Main trading loop (async version)"""
+        log_action("Starting async main trading loop")
+        
+        while self.is_running:
+            try:
+                # Run periodic tasks
+                await self._scrape_news_async()
+                await self._scan_prices_async()
+                await self._send_heartbeat_async()
+                await self._cleanup_logs_async()
+                
+                # Check for trading opportunities
+                if self._should_trade():
+                    await self._execute_trading_strategy_async()
+                
+                # Small delay to prevent excessive CPU usage
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                log_error("Async trading loop error", {"error": str(e)})
+                await asyncio.sleep(5)  # Wait before retrying
     
     def _should_trade(self) -> bool:
         """Check if we should trade based on various conditions"""
@@ -258,6 +281,73 @@ class TradingBot:
         except Exception as e:
             log_error("Trading strategy execution error", {"error": str(e)})
     
+    async def _execute_trading_strategy_async(self):
+        """Execute the main trading strategy (async version)"""
+        try:
+            # Get account information
+            account_info = self.oanda_client.get_account_info()
+            if not account_info or account_info.get('balance', 0) < 100:
+                return
+            
+            # Get current prices for all trading pairs
+            prices = self.oanda_client.get_prices(TRADING_PAIRS)
+            if not prices:
+                return
+            
+            # Analyze each pair for trading opportunities
+            best_opportunity = None
+            best_confidence = 0.0
+            
+            for pair in TRADING_PAIRS:
+                if pair not in prices:
+                    continue
+                
+                # Check spread
+                if not self.oanda_client.is_spread_acceptable(pair):
+                    continue
+                
+                # Get candlestick data
+                candles = self.oanda_client.get_candles(pair)
+                if not candles or len(candles.get('close', [])) < 50:
+                    continue
+                
+                # Perform technical analysis
+                technical_analysis = self.technical_analyzer.get_comprehensive_analysis(candles)
+                
+                # Get news sentiment
+                sentiment_analysis = self.news_analyzer.analyze_news_sentiment()
+                
+                # Calculate overall confidence
+                technical_confidence = technical_analysis.get('confidence', 0.0)
+                sentiment_score = abs(sentiment_analysis.get('score', 0.0))
+                
+                # Combine technical and sentiment analysis
+                overall_confidence = calculate_confidence_score(
+                    technical_confidence, sentiment_score, 0.5
+                )
+                
+                # Check if this is a good opportunity
+                if (overall_confidence > best_confidence and 
+                    overall_confidence > 0.6 and 
+                    technical_analysis.get('signal') != 'neutral'):
+                    
+                    best_confidence = overall_confidence
+                    best_opportunity = {
+                        'pair': pair,
+                        'signal': technical_analysis.get('signal'),
+                        'confidence': overall_confidence,
+                        'price': prices[pair]['ask'],
+                        'technical_analysis': technical_analysis,
+                        'sentiment_analysis': sentiment_analysis
+                    }
+            
+            # Execute trade if we found a good opportunity
+            if best_opportunity and best_confidence > 0.7:
+                await self._execute_trade_async(best_opportunity)
+            
+        except Exception as e:
+            log_error("Async trading strategy execution error", {"error": str(e)})
+    
     def _execute_trade(self, opportunity: Dict[str, Any]):
         """Execute a trade based on the opportunity"""
         try:
@@ -323,6 +413,64 @@ class TradingBot:
         except Exception as e:
             log_error("Trade execution error", {"error": str(e)})
     
+    async def _execute_trade_async(self, opportunity: Dict[str, Any]):
+        """Execute a trade based on the opportunity (async version)"""
+        try:
+            pair = opportunity['pair']
+            signal = opportunity['signal']
+            confidence = opportunity['confidence']
+            price = opportunity['price']
+            
+            # Get account info for position sizing
+            account_info = self.oanda_client.get_account_info()
+            balance = account_info.get('balance', 0)
+            
+            # Calculate position size
+            position_size = self.oanda_client.calculate_position_size(
+                balance, 2.0, 50, pair
+            )
+            
+            # Determine trade direction and units
+            if signal == "buy":
+                units = position_size
+                side = "buy"
+            elif signal == "sell":
+                units = -position_size
+                side = "sell"
+            else:
+                return
+            
+            # Place the order
+            order_result = self.oanda_client.place_order(pair, units, side)
+            
+            if order_result:
+                # Update tracking variables
+                self.daily_trades += 1
+                self.last_trade_time = datetime.now()
+                
+                # Log the trade
+                trade_info = {
+                    'pair': pair,
+                    'side': side,
+                    'units': units,
+                    'price': price,
+                    'confidence': confidence,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                log_action("Async trade executed", trade_info)
+                
+                # Send Telegram notification
+                if self.telegram_bot:
+                    await self.telegram_bot.send_trade_alert(trade_info)
+                
+                # Update state
+                self.state['trades'].append(trade_info)
+                save_state(self.state)
+            
+        except Exception as e:
+            log_error("Async trade execution error", {"error": str(e)})
+    
     def _scrape_news(self):
         """Scrape and analyze news"""
         try:
@@ -338,6 +486,22 @@ class TradingBot:
             
         except Exception as e:
             log_error("News scraping error", {"error": str(e)})
+    
+    async def _scrape_news_async(self):
+        """Scrape and analyze news (async version)"""
+        try:
+            log_action("Starting async news scraping")
+            sentiment_result = self.news_analyzer.analyze_news_sentiment()
+            
+            # Update state with sentiment
+            self.state['sentiment_scores'] = sentiment_result
+            self.state['last_news_scrape'] = datetime.now().isoformat()
+            save_state(self.state)
+            
+            log_action("Async news scraping completed", sentiment_result)
+            
+        except Exception as e:
+            log_error("Async news scraping error", {"error": str(e)})
     
     def _scan_prices(self):
         """Scan market prices"""
@@ -355,6 +519,23 @@ class TradingBot:
             
         except Exception as e:
             log_error("Price scan error", {"error": str(e)})
+    
+    async def _scan_prices_async(self):
+        """Scan market prices (async version)"""
+        try:
+            log_action("Starting async price scan")
+            
+            # Get current prices
+            prices = self.oanda_client.get_prices(TRADING_PAIRS)
+            
+            # Update state
+            self.state['last_price_scan'] = datetime.now().isoformat()
+            save_state(self.state)
+            
+            log_action("Async price scan completed", {"pairs_scanned": len(prices)})
+            
+        except Exception as e:
+            log_error("Async price scan error", {"error": str(e)})
     
     def _send_heartbeat(self):
         """Send heartbeat to Telegram"""
@@ -376,6 +557,19 @@ class TradingBot:
         except Exception as e:
             log_error("Heartbeat error", {"error": str(e)})
     
+    async def _send_heartbeat_async(self):
+        """Send heartbeat to Telegram (async version)"""
+        try:
+            if self.telegram_bot:
+                heartbeat_message = f"💓 Bot Heartbeat - {datetime.now().strftime('%H:%M:%S')}"
+                await self.telegram_bot.send_notification(heartbeat_message)
+            
+            self.state['last_heartbeat'] = datetime.now().isoformat()
+            save_state(self.state)
+            
+        except Exception as e:
+            log_error("Async heartbeat error", {"error": str(e)})
+    
     def _cleanup_logs(self):
         """Clean up old log files"""
         try:
@@ -383,6 +577,14 @@ class TradingBot:
             log_action("Log cleanup completed")
         except Exception as e:
             log_error("Log cleanup error", {"error": str(e)})
+    
+    async def _cleanup_logs_async(self):
+        """Clean up old log files (async version)"""
+        try:
+            cleanup_old_logs()
+            log_action("Async log cleanup completed")
+        except Exception as e:
+            log_error("Async log cleanup error", {"error": str(e)})
     
     def _daily_reset(self):
         """Reset daily counters"""
@@ -430,24 +632,25 @@ async def async_main():
         # Create and start the trading bot
         bot = TradingBot()
         
-        # Start Telegram bot in a separate thread
-        if bot.telegram_bot:
-            import threading
-            
-            def run_telegram_bot():
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    loop.run_until_complete(bot.telegram_bot.start_polling())
-                except Exception as e:
-                    log_error("Telegram bot thread error", {"error": str(e)})
-            
-            # Start Telegram bot in a separate thread
-            telegram_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-            telegram_thread.start()
+        # Create tasks list
+        tasks = []
         
-        # Start main trading loop in current thread
-        bot._run_trading_loop()
+        # Start Telegram bot polling in the main event loop
+        if bot.telegram_bot:
+            # Start Telegram bot polling as a background task
+            telegram_task = asyncio.create_task(bot.telegram_bot.start_polling())
+            tasks.append(telegram_task)
+        
+        # Start main trading loop as a background task
+        trading_task = asyncio.create_task(bot._run_trading_loop_async())
+        tasks.append(trading_task)
+        
+        # Wait for all tasks
+        if tasks:
+            await asyncio.gather(*tasks)
+        else:
+            # Fallback to synchronous trading loop if no async tasks
+            bot._run_trading_loop()
         
     except Exception as e:
         logger.error(f"Async main error: {e}")
