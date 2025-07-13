@@ -73,11 +73,6 @@ class TradingBot:
             self.is_running = True
             log_action("Trading bot started")
             
-            # Start Telegram bot in a separate thread
-            telegram_thread = threading.Thread(target=self._start_telegram_bot)
-            telegram_thread.daemon = True
-            telegram_thread.start()
-            
             # Start main trading loop
             self._run_trading_loop()
             
@@ -109,7 +104,21 @@ class TradingBot:
         """Start Telegram bot polling"""
         try:
             if self.telegram_bot:
-                self.telegram_bot.start_polling()
+                # Create a new event loop for the Telegram bot thread
+                import threading
+                
+                def run_telegram_bot():
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self.telegram_bot.start_polling())
+                    except Exception as e:
+                        log_error("Telegram bot thread error", {"error": str(e)})
+                
+                # Start Telegram bot in a separate thread
+                telegram_thread = threading.Thread(target=run_telegram_bot, daemon=True)
+                telegram_thread.start()
+                
         except Exception as e:
             log_error("Telegram bot start error", {"error": str(e)})
     
@@ -298,7 +307,14 @@ class TradingBot:
                 
                 # Send Telegram notification
                 if self.telegram_bot:
-                    asyncio.run(self.telegram_bot.send_trade_alert(trade_info))
+                    try:
+                        # Create a new event loop for the notification
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self.telegram_bot.send_trade_alert(trade_info))
+                        loop.close()
+                    except Exception as e:
+                        log_error("Failed to send trade alert", {"error": str(e)})
                 
                 # Update state
                 self.state['trades'].append(trade_info)
@@ -345,7 +361,14 @@ class TradingBot:
         try:
             if self.telegram_bot:
                 heartbeat_message = f"💓 Bot Heartbeat - {datetime.now().strftime('%H:%M:%S')}"
-                asyncio.run(self.telegram_bot.send_notification(heartbeat_message))
+                try:
+                    # Create a new event loop for the notification
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(self.telegram_bot.send_notification(heartbeat_message))
+                    loop.close()
+                except Exception as e:
+                    log_error("Failed to send heartbeat", {"error": str(e)})
             
             self.state['last_heartbeat'] = datetime.now().isoformat()
             save_state(self.state)
@@ -401,22 +424,49 @@ class TradingBot:
         except Exception as e:
             log_error("Performance metrics update error", {"error": str(e)})
 
+async def async_main():
+    """Async main entry point"""
+    try:
+        # Create and start the trading bot
+        bot = TradingBot()
+        
+        # Start Telegram bot in a separate thread
+        if bot.telegram_bot:
+            import threading
+            
+            def run_telegram_bot():
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(bot.telegram_bot.start_polling())
+                except Exception as e:
+                    log_error("Telegram bot thread error", {"error": str(e)})
+            
+            # Start Telegram bot in a separate thread
+            telegram_thread = threading.Thread(target=run_telegram_bot, daemon=True)
+            telegram_thread.start()
+        
+        # Start main trading loop in current thread
+        bot._run_trading_loop()
+        
+    except Exception as e:
+        logger.error(f"Async main error: {e}")
+        log_error("Async main application error", {"error": str(e)})
+        sys.exit(1)
+
 def main():
     """Main entry point"""
     try:
         # Set up signal handlers for graceful shutdown
         def signal_handler(signum, frame):
             logger.info("Received shutdown signal")
-            if bot:
-                bot.stop()
             sys.exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         
-        # Create and start the trading bot
-        bot = TradingBot()
-        bot.start()
+        # Run the async main function
+        asyncio.run(async_main())
         
     except Exception as e:
         logger.error(f"Main error: {e}")
