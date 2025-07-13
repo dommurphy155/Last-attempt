@@ -155,7 +155,6 @@ def test_technical_analysis():
     
     try:
         from technical_analysis import TechnicalAnalyzer
-        import numpy as np
         
         analyzer = TechnicalAnalyzer()
         

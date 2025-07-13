@@ -1,5 +1,3 @@
-import pandas as pd
-import numpy as np
 import ta
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timedelta
@@ -18,55 +16,53 @@ class TechnicalAnalyzer:
         self.patterns = {}
         
     def calculate_rsi(self, prices: List[float], period: int = RSI_PERIOD) -> float:
-        """Calculate RSI indicator"""
+        """Calculate RSI indicator (lightweight)"""
         try:
             if len(prices) < period + 1:
                 return 50.0  # Neutral RSI if insufficient data
-            
-            df = pd.DataFrame({'close': prices})
-            rsi = ta.momentum.RSIIndicator(df['close'], window=period)
+            import pandas as pd
+            series = pd.Series(prices)
+            rsi = ta.momentum.RSIIndicator(series, window=period)
             return float(rsi.rsi().iloc[-1])
         except Exception as e:
             logger.error(f"RSI calculation error: {e}")
             return 50.0
     
     def calculate_macd(self, prices: List[float]) -> Tuple[float, float, float]:
-        """Calculate MACD indicator"""
+        """Calculate MACD indicator (lightweight)"""
         try:
             if len(prices) < MACD_SLOW + 1:
                 return 0.0, 0.0, 0.0
-            
-            df = pd.DataFrame({'close': prices})
-            macd = ta.trend.MACD(df['close'], window_fast=MACD_FAST, window_slow=MACD_SLOW, window_sign=MACD_SIGNAL)
-            
+            import pandas as pd
+            series = pd.Series(prices)
+            macd = ta.trend.MACD(series, window_fast=MACD_FAST, window_slow=MACD_SLOW, window_sign=MACD_SIGNAL)
             macd_line = float(macd.macd().iloc[-1])
             signal_line = float(macd.macd_signal().iloc[-1])
             histogram = float(macd.macd_diff().iloc[-1])
-            
             return macd_line, signal_line, histogram
         except Exception as e:
             logger.error(f"MACD calculation error: {e}")
             return 0.0, 0.0, 0.0
     
     def calculate_ema(self, prices: List[float], period: int) -> float:
-        """Calculate EMA indicator"""
+        """Calculate EMA indicator (lightweight)"""
         try:
             if len(prices) < period:
                 return prices[-1] if prices else 0.0
-            
-            df = pd.DataFrame({'close': prices})
-            ema = ta.trend.EMAIndicator(df['close'], window=period)
+            import pandas as pd
+            series = pd.Series(prices)
+            ema = ta.trend.EMAIndicator(series, window=period)
             return float(ema.ema_indicator().iloc[-1])
         except Exception as e:
             logger.error(f"EMA calculation error: {e}")
             return prices[-1] if prices else 0.0
     
     def calculate_atr(self, high: List[float], low: List[float], close: List[float], period: int = ATR_PERIOD) -> float:
-        """Calculate ATR indicator"""
+        """Calculate ATR indicator (lightweight)"""
         try:
             if len(high) < period or len(low) < period or len(close) < period:
                 return 0.0
-            
+            import pandas as pd
             df = pd.DataFrame({
                 'high': high,
                 'low': low,
@@ -207,7 +203,7 @@ class TechnicalAnalyzer:
         if len(prices) < 5 or len(volumes) < 5:
             return {"signal": "neutral", "strength": 0.0}
         
-        avg_volume = np.mean(volumes[-5:])
+        avg_volume = sum(volumes[-5:]) / 5
         current_volume = volumes[-1]
         price_change = prices[-1] - prices[-2]
         
@@ -254,8 +250,12 @@ class TechnicalAnalyzer:
         if len(prices) < period:
             return 0.0
         
-        returns = np.diff(np.log(prices[-period:]))
-        volatility = np.std(returns) * np.sqrt(252)  # Annualized
+        import math
+        returns = [math.log(prices[i+1] / prices[i]) for i in range(len(prices) - 1)]
+        # Calculate standard deviation manually
+        mean_return = sum(returns) / len(returns)
+        variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        volatility = math.sqrt(variance) * math.sqrt(252)  # Annualized
         return min(volatility, 1.0)
     
     def detect_trend_strength(self, prices: List[float], period: int = 20) -> Dict[str, any]:
@@ -265,7 +265,7 @@ class TechnicalAnalyzer:
         
         # Simple trend strength calculation
         price_change = prices[-1] - prices[-period]
-        avg_price = np.mean(prices[-period:])
+        avg_price = sum(prices[-period:]) / period
         strength = abs(price_change) / avg_price
         
         if price_change > 0:
