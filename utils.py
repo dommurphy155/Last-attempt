@@ -6,13 +6,12 @@ from typing import Dict, List, Any, Optional
 import requests
 from config import LOG_FILE, ERROR_LOG_FILE
 
-# Configure logging
+# Configure logging for systemd (journald)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('trading_bot.log'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # This goes to journald when running as systemd service
     ]
 )
 logger = logging.getLogger(__name__)

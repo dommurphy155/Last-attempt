@@ -1,0 +1,15 @@
+[Unit]
+Description=AI Forex Trading Bot Health Check Timer
+Documentation=https://github.com/your-repo/ai-forex-trading-bot
+Requires=forex-bot.service
+
+[Timer]
+# Check every 30 minutes
+OnCalendar=*:0/30
+# Randomize start time to avoid thundering herd
+RandomizedDelaySec=300
+# Run even if the service is not active
+Persistent=true
+
+[Install]
+WantedBy=timers.target
