@@ -64,7 +64,7 @@ def get_recent_logs(count: int = 20) -> List[Dict[str, Any]]:
 def calculate_win_rate(wins: int, losses: int) -> float:
     """Calculate win rate percentage"""
     total = wins + losses
-    return (wins / total * 100) if total > 0 else 0.0
+    return round((wins / total * 100), 2) if total > 0 else 0.0
 
 def calculate_pnl_percentage(initial_balance: float, current_balance: float) -> float:
     """Calculate P&L percentage"""
