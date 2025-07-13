@@ -469,13 +469,28 @@ class TelegramBot:
         except Exception as e:
             log_error("Failed to send trade alert", {"error": str(e)})
     
-    def start_polling(self):
+    async def start_polling(self):
         """Start the bot polling"""
         try:
             if self.application:
-                self.application.run_polling()
-                logger.info("Telegram bot polling started")
-                log_action("Telegram bot polling started")
+                logger.info("Starting Telegram bot polling...")
+                log_action("Starting Telegram bot polling")
+                
+                # Verify we have a valid event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    logger.info(f"Using existing event loop: {loop}")
+                except RuntimeError:
+                    logger.info("No running event loop, creating new one")
+                
+                await self.application.run_polling()
+                logger.info("Telegram bot polling started successfully")
+                log_action("Telegram bot polling started successfully")
+            else:
+                logger.error("Telegram application not initialized")
+                log_error("Telegram application not initialized")
         except Exception as e:
             logger.error(f"Failed to start Telegram bot polling: {e}")
             log_error("Telegram bot polling failed", {"error": str(e)})
+            # Re-raise to allow proper error handling
+            raise
