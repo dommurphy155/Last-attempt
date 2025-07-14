@@ -1,7 +1,6 @@
 import asyncio
 import time
 import threading
-import schedule
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import logging

@@ -7,16 +7,14 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_COMMANDS
 from utils import log_action, log_error, get_recent_logs, format_currency, format_percentage
 from oanda_client import OandaClient
-from technical_analysis import TechnicalAnalyzer
 
 logger = logging.getLogger(__name__)
 
 class TelegramBot:
-    def __init__(self, oanda_client: OandaClient, technical_analyzer: TechnicalAnalyzer):
+    def __init__(self, oanda_client: OandaClient):
         self.bot_token = TELEGRAM_BOT_TOKEN
         self.chat_id = TELEGRAM_CHAT_ID
         self.oanda_client = oanda_client
-        self.technical_analyzer = technical_analyzer
         self.application = None
         self.last_message_time = {}
         
@@ -129,24 +127,24 @@ class TelegramBot:
                         continue
                     
                     # Perform technical analysis
-                    analysis = self.technical_analyzer.get_comprehensive_analysis(candles)
+                    # analysis = self.technical_analyzer.get_comprehensive_analysis(candles)
                     
                     # Check spread
                     if not self.oanda_client.is_spread_acceptable(instrument):
                         continue
                     
                     # Calculate overall confidence
-                    technical_confidence = analysis.get('confidence', 0.0)
+                    # technical_confidence = analysis.get('confidence', 0.0)
                     
-                    if technical_confidence > best_confidence and technical_confidence > 0.6:
-                        best_confidence = technical_confidence
-                        best_trade = {
-                            'instrument': instrument,
-                            'signal': analysis.get('signal', 'neutral'),
-                            'confidence': best_confidence,
-                            'price': prices[instrument]['ask'],
-                            'analysis': analysis
-                        }
+                    # if technical_confidence > best_confidence and technical_confidence > 0.6:
+                    #     best_confidence = technical_confidence
+                    #     best_trade = {
+                    #         'instrument': instrument,
+                    #         'signal': analysis.get('signal', 'neutral'),
+                    #         'confidence': best_confidence,
+                    #         'price': prices[instrument]['ask'],
+                    #         'analysis': analysis
+                    #     }
             
             if not best_trade:
                 await update.message.reply_text("❌ No suitable trading opportunities found")
