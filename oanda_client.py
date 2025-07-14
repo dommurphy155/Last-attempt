@@ -5,7 +5,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import logging
 from config import OANDA_API_KEY, OANDA_ACCOUNT_ID
-from utils import log_error, log_action, validate_api_response
+from telegram_bot import log_error, log_action
 
 logger = logging.getLogger(__name__)
 
