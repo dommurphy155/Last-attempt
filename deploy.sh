@@ -146,7 +146,7 @@ WorkingDirectory=$(pwd)
 Environment=PATH=$(pwd)/venv/bin
 Environment=PYTHONPATH=$(pwd)
 Environment=PYTHONUNBUFFERED=1
-ExecStart=$(pwd)/venv/bin/$PYTHON_CMD trading_bot.py
+ExecStart=$(pwd)/venv/bin/$PYTHON_CMD bot_runner.py
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
 RestartSec=10

@@ -1,337 +1,238 @@
-# 🤖 AI Forex Trading Bot
+# AI Forex Trading Bot
 
-A fully automated AI-powered forex trading bot built for Ubuntu 20.04 with Python 3.8.10. This bot combines advanced technical analysis, real-time news sentiment analysis, and intelligent risk management to execute profitable trades.
+A sophisticated AI-powered forex trading bot that combines technical analysis, news sentiment analysis, and machine learning to make automated trading decisions.
 
-## 🚀 Features
+## Features
 
-### Core Intelligence
-- **Advanced Technical Analysis**: RSI, MACD, EMA, ATR, Fibonacci levels, candlestick patterns
-- **Real-time News Sentiment**: Scrapes 20+ financial sources with AI-powered sentiment analysis
-- **Multi-timeframe Analysis**: Combines signals from different timeframes
-- **Risk Management**: Dynamic position sizing, stop-loss, take-profit, and volatility filters
+- 🤖 **AI-Powered Analysis**: Combines technical indicators with news sentiment analysis
+- 📊 **Technical Analysis**: RSI, MACD, EMA, ATR, Fibonacci levels, support/resistance
+- 📰 **News Sentiment**: Real-time news scraping and sentiment analysis
+- 💬 **Telegram Integration**: Full bot control and monitoring via Telegram
+- 🔄 **Async Architecture**: High-performance async/await implementation
+- 🛡️ **Risk Management**: Comprehensive risk controls and position sizing
+- 📈 **Performance Tracking**: Detailed trade history and performance metrics
+- 🔧 **Health Monitoring**: Built-in health checks and automatic recovery
 
-### Trading Capabilities
-- **Automated Trading**: Places 5-15 ROI-positive trades per day
-- **High Win Rate**: Targets 60%+ win rate with adaptive strategies
-- **Real-time Monitoring**: Continuous market scanning every 7 seconds
-- **News Integration**: Scrapes financial news every 12 minutes
+## Quick Start
 
-### Telegram Integration
-- **Full Control**: 10+ commands for complete bot management
-- **Real-time Alerts**: Trade notifications and status updates
-- **Performance Tracking**: P&L, win rate, and strategy statistics
-- **Emergency Controls**: Instant position closure and trading halt
+### 1. Prerequisites
 
-## 📋 Requirements
+- Python 3.8+
+- Ubuntu 20.04+ (recommended)
+- OANDA demo account
+- Telegram bot token
+- HuggingFace API key
 
-- **OS**: Ubuntu 20.04 or higher
-- **Python**: 3.8.10 or higher
-- **Memory**: 2GB RAM minimum
-- **Storage**: 1GB free space
-- **Internet**: Stable connection for API calls
+### 2. Installation
 
-## 🔧 Installation
-
-### 1. Clone the Repository
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone <your-repo-url>
 cd ai-forex-trading-bot
-```
 
-### 2. Run Deployment Script
-```bash
+# Run deployment script
 ./deploy.sh
 ```
 
-### 3. Set Up Environment Variables
+### 3. Configuration
+
 ```bash
-./setup_env.sh
-nano .env  # Fill in your API keys
-```
-
-### 4. Validate Configuration
-```bash
-python -c "from config import validate_config; validate_config(); print('✅ Configuration valid')"
-```
-
-## 🚀 Usage
-
-### Deploy and Start the Bot
-```bash
-# 1. Run the deployment script
-./deploy.sh
-
-# 2. Set up environment variables
+# Copy environment template
 cp .env.template .env
-nano .env  # Fill in your API keys
 
-# 3. Start the bot as a systemd service
+# Edit with your API keys
+nano .env
+```
+
+Required environment variables:
+```env
+HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+OANDA_API_KEY=your_oanda_api_key_here
+OANDA_ACCOUNT_ID=your_oanda_account_id_here
+```
+
+### 4. Test Installation
+
+```bash
+# Test all components
+python3 test_bot.py
+```
+
+### 5. Start the Bot
+
+```bash
+# Start via systemd (recommended)
 ./start_bot.sh
 
-# 4. Monitor the bot
-./monitor_bot.sh
+# Or run directly
+python3 bot_runner.py
 ```
 
-### Telegram Commands
+## Architecture
+
+### Core Components
+
+- **`bot_runner.py`**: Main entry point with health monitoring and error recovery
+- **`trading_bot.py`**: Core trading logic and strategy implementation
+- **`oanda_client.py`**: OANDA API integration for trading operations
+- **`technical_analysis.py`**: Technical indicators and pattern recognition
+- **`news_sentiment.py`**: News scraping and sentiment analysis
+- **`telegram_bot.py`**: Telegram bot interface for monitoring and control
+- **`config.py`**: Configuration management and validation
+- **`utils.py`**: Utility functions and logging
+
+### Async Architecture
+
+The bot uses Python's asyncio for high-performance concurrent operations:
+
+- **Independent Tasks**: News scraping, price monitoring, and trading run concurrently
+- **Health Monitoring**: Continuous health checks with automatic recovery
+- **Graceful Shutdown**: Proper cleanup and position management on exit
+
+## Telegram Commands
 
 | Command | Description |
 |---------|-------------|
-| `/start` | Initialize bot and show available commands |
-| `/status` | Full diagnostic: trades, P&L, positions, sentiment |
-| `/maketrade` | Place a real-time, ROI-optimized trade |
+| `/start` | Initialize the bot |
+| `/status` | Full diagnostic report |
+| `/maketrade` | Execute a real-time trade |
 | `/whatyoudoin` | Show current bot activity |
-| `/canceltrade` | Close all positions and halt trading |
-| `/showlog` | Display last 20 bot actions |
-| `/togglemode` | Switch between aggressive/safe trading |
-| `/resetbot` | Reset bot state and restart |
-| `/pnl` | Show profit/loss summary |
-| `/openpositions` | Display all open positions |
-| `/strategystats` | Show strategy performance |
-| `/help` | Display help information |
+| `/canceltrade` | Close all positions |
+| `/showlog` | Recent activity log |
+| `/togglemode` | Switch trading modes |
+| `/resetbot` | Reset bot state |
+| `/pnl` | Profit/Loss summary |
+| `/openpositions` | Show open positions |
+| `/strategystats` | Strategy performance |
 
-## 📊 Trading Strategy
+## Risk Management
 
-### Technical Analysis
-- **RSI Breakout Detection**: Identifies oversold/overbought conditions
-- **MACD Divergence**: Detects price/momentum divergences
-- **EMA Crossovers**: Fast/slow EMA signal generation
-- **Candlestick Patterns**: Pinbar, engulfing, and other patterns
-- **Support/Resistance**: Dynamic level detection
-- **Volume Analysis**: Volume confirmation for breakouts
+- **Position Sizing**: Maximum 10% of account per trade
+- **Stop Loss**: Automatic 50-pip stop loss
+- **Take Profit**: 100-pip take profit targets
+- **Daily Limits**: Maximum 15 trades per day
+- **Loss Streak Protection**: Pause trading after 3 consecutive losses
+- **Emergency Shutdown**: Auto-stop at -10% P&L
 
-### Sentiment Analysis
-- **Multi-Source Scraping**: 20+ financial news sources
-- **AI-Powered Analysis**: Multiple Hugging Face models
-- **Volatility Detection**: Keyword-based volatility scoring
-- **Currency Pair Impact**: Forex-specific sentiment analysis
+## Monitoring & Maintenance
 
-### Risk Management
-- **Dynamic Position Sizing**: Based on account balance and volatility
-- **Spread Filtering**: Avoids trades with excessive spreads
-- **Time-based Restrictions**: Avoids low-liquidity hours
-- **Consecutive Loss Protection**: Pauses trading after 3 losses
-- **News Blackout**: Avoids trading during high-impact news
+### Health Checks
 
-## 🔐 Security
+The bot includes comprehensive health monitoring:
 
-- **API Key Protection**: Environment variables only
-- **Demo Account**: Uses OANDA demo for testing
-- **Error Handling**: Comprehensive error logging and recovery
-- **State Persistence**: JSON-based state management
-- **Graceful Shutdown**: Proper cleanup on exit
+- **Connection Monitoring**: OANDA API and Telegram connectivity
+- **Performance Tracking**: Trade success rates and P&L
+- **Error Recovery**: Automatic restart on critical failures
+- **Resource Monitoring**: Memory and CPU usage
 
-## 📈 Performance Features
+### Logs
 
-### 30 Profit-Maximizing Upgrades
-- RSI breakout detector
-- MACD divergence + convergence
-- Fibonacci retracement filter
-- EMA cross with candle confirm
-- Heikin-Ashi momentum alignment
-- ATR-based SL/TP calibration
-- Dynamic lot sizing
-- Multi-timeframe confluence
-- Time-of-day optimization
-- Entry delay for breakout validation
+- **Trading Log**: All trades and decisions
+- **Error Log**: Error tracking and debugging
+- **System Log**: System-level events
 
-### 20 Stability & Self-Learning Features
-- Win-rate live tracking
-- Loss-streak auto-throttle
-- Crash-proof loops
-- Fallback model rotation
-- Heartbeat monitoring
-- Time-weighted strategy scoring
-- Market condition classifier
-- Auto-reset on latency issues
-- Trade rationale logging
-- JSON flat state file
+### Backup
 
-## 🛠️ Configuration
+```bash
+# Create backup
+./backup_bot.sh
+
+# Restore from backup
+cp -r backups/YYYYMMDD_HHMMSS/* .
+```
+
+## Deployment
+
+### Systemd Service
+
+The bot runs as a systemd service for reliability:
+
+```bash
+# Service management
+sudo systemctl start forex-bot
+sudo systemctl stop forex-bot
+sudo systemctl status forex-bot
+sudo systemctl enable forex-bot  # Auto-start on boot
+```
+
+### Docker (Alternative)
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+CMD ["python", "bot_runner.py"]
+```
+
+## Configuration
 
 ### Trading Parameters
-```python
-# config.py
-MAX_TRADES_PER_DAY = 15
-MIN_TRADES_PER_DAY = 5
-MAX_LOSS_STREAK = 3
-MIN_WIN_RATE = 0.60
-MAX_POSITION_SIZE = 0.1  # 10% of account
-STOP_LOSS_PIPS = 50
-TAKE_PROFIT_PIPS = 100
-```
 
-### Technical Analysis
-```python
-RSI_PERIOD = 14
-RSI_OVERBOUGHT = 70
-RSI_OVERSOLD = 30
-MACD_FAST = 12
-MACD_SLOW = 26
-MACD_SIGNAL = 9
-```
+Edit `config.py` to customize:
 
-### Time Intervals
-```python
-NEWS_SCRAPE_INTERVAL = 12 * 60  # 12 minutes
-PRICE_SCAN_INTERVAL = 7  # 7 seconds
-HEARTBEAT_INTERVAL = 5 * 60  # 5 minutes
-```
+- **Trading Pairs**: Default forex pairs to trade
+- **Risk Settings**: Position sizes and stop losses
+- **Technical Indicators**: RSI, MACD, EMA periods
+- **News Sources**: Sources for sentiment analysis
+- **Time Intervals**: Scraping and monitoring frequencies
 
-## 📝 Logging
+### Performance Tuning
 
-The bot uses systemd journald for comprehensive logging:
-- All logs are captured by systemd and can be viewed with `journalctl`
-- `trading_log.json`: Structured action log
-- `error_log.json`: Error tracking
-- `bot_state.json`: Persistent state
+- **Aggressive Mode**: Higher risk, more frequent trades
+- **Safe Mode**: Conservative approach with higher confidence thresholds
+- **Custom Strategies**: Implement your own trading logic
 
-### Viewing Logs
-```bash
-# View all bot logs
-sudo journalctl -u forex-bot
-
-# Follow logs in real-time
-sudo journalctl -u forex-bot -f
-
-# View recent logs
-sudo journalctl -u forex-bot -n 50
-
-# View error logs only
-sudo journalctl -u forex-bot -p err
-```
-
-## 🔍 Monitoring
-
-### Real-time Monitoring
-- Systemd service monitoring with automatic restarts
-- Telegram notifications for all trades
-- Heartbeat messages every 5 minutes
-- Performance metrics tracking
-- Error alerting and recovery
-- Comprehensive logging via journald
-
-### Service Management
-```bash
-# Start the service
-sudo systemctl start forex-bot
-
-# Stop the service
-sudo systemctl stop forex-bot
-
-# Check service status
-sudo systemctl status forex-bot
-
-# Enable auto-start on boot
-sudo systemctl enable forex-bot
-
-# View real-time logs
-sudo journalctl -u forex-bot -f
-```
-
-### Performance Metrics
-- Win rate calculation
-- P&L tracking
-- Strategy performance ranking
-- Risk-adjusted returns
-
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-1. **Service Not Starting**
-   ```bash
-   # Check service status
-   sudo systemctl status forex-bot
-   
-   # View error logs
-   sudo journalctl -u forex-bot -p err
-   
-   # Check environment variables
-   ./status_bot.sh
-   ```
-
-2. **API Connection Errors**
-   - Verify API keys in `.env` file
-   - Check internet connection
-   - Ensure OANDA account is active
-
-3. **Telegram Bot Issues**
-   - Verify bot token and chat ID
-   - Check bot permissions
-   - Ensure bot is not blocked
-
-4. **Service Crashes**
-   ```bash
-   # Check recent logs
-   sudo journalctl -u forex-bot -n 50
-   
-   # Restart service
-   sudo systemctl restart forex-bot
-   
-   # Check for memory issues
-   free -h
-   ```
-
-5. **Environment Variable Issues**
-   ```bash
-   # Re-run environment setup
-   ./setup_env.sh
-   
-   # Check if .env file exists
-   ls -la .env
-   ```
+1. **Import Errors**: Run `pip install -r requirements.txt`
+2. **API Connection**: Verify API keys in `.env`
+3. **Permission Errors**: Check file permissions and user access
+4. **Service Won't Start**: Check logs with `journalctl -u forex-bot`
 
 ### Debug Mode
+
 ```bash
-# Run bot directly for debugging
-source venv/bin/activate
-python trading_bot.py
+# Run with debug logging
+python3 bot_runner.py --debug
+
+# Check specific component
+python3 -c "import oanda_client; print('OANDA client OK')"
 ```
 
-### Health Monitoring
-```bash
-# Enable health check timer
-sudo systemctl enable forex-bot.timer
-sudo systemctl start forex-bot.timer
+## Security
 
-# Check timer status
-sudo systemctl status forex-bot.timer
-```
+- **API Key Protection**: Store keys in environment variables
+- **Network Security**: Use HTTPS for all API communications
+- **Access Control**: Restrict bot access to authorized users
+- **Audit Logging**: Complete audit trail of all actions
 
-## � Available Scripts
+## Contributing
 
-| Script | Description |
-|--------|-------------|
-| `deploy.sh` | Complete deployment script for Ubuntu |
-| `setup_env.sh` | Set up environment variables for systemd |
-| `start_bot.sh` | Start the bot as systemd service |
-| `stop_bot.sh` | Stop the bot service gracefully |
-| `status_bot.sh` | Comprehensive status and health check |
-| `monitor_bot.sh` | Real-time monitoring with journalctl |
-| `backup_bot.sh` | Create backup of bot files |
-| `cleanup.sh` | Clean up unnecessary files |
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
-## �📞 Support
+## License
 
-For issues and support:
-1. Check the logs: `sudo journalctl -u forex-bot`
-2. Verify environment variables: `./status_bot.sh`
-3. Test API connections individually
-4. Review configuration parameters
-5. Check service status: `sudo systemctl status forex-bot`
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-This bot is for educational and testing purposes. Trading forex involves substantial risk of loss. Always:
-- Test thoroughly on demo accounts
-- Start with small position sizes
-- Monitor performance closely
-- Never risk more than you can afford to lose
+This software is for educational purposes only. Trading forex involves substantial risk of loss. Use at your own risk. The authors are not responsible for any financial losses incurred through the use of this software.
 
-## 📄 License
+## Support
 
-This project is for educational purposes. Use at your own risk.
-
----
-
-**Built with ❤️ for automated forex trading**
+For support and questions:
+- Create an issue on GitHub
+- Check the troubleshooting section
+- Review the logs for error details
