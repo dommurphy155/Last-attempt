@@ -12,7 +12,7 @@ from config import (
     HEARTBEAT_INTERVAL, LOG_CLEANUP_INTERVAL, validate_config,
     load_state, save_state, get_default_state, demo_mode
 )
-from utils import log_action, log_error, cleanup_old_logs, calculate_confidence_score
+from telegram_bot import log_action, log_error
 from oanda_client import OandaClient
 from technical_analysis import TechnicalAnalyzer
 from telegram_bot import TelegramBot
