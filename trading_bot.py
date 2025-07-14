@@ -86,19 +86,53 @@ class TradingBot:
         """Stop the trading bot"""
         try:
             self.is_running = False
-            log_action("Trading bot stopped")
+            log_action("Trading bot stopping...")
             
             # Close all positions
             if self.oanda_client:
-                positions = self.oanda_client.get_positions()
-                for position in positions:
-                    self.oanda_client.close_position(position['instrument'])
+                try:
+                    positions = self.oanda_client.get_positions()
+                    for position in positions:
+                        self.oanda_client.close_position(position['instrument'])
+                except Exception as e:
+                    log_error("Error closing positions during shutdown", {"error": str(e)})
             
             # Save final state
-            save_state(self.state)
+            try:
+                save_state(self.state)
+            except Exception as e:
+                log_error("Error saving state during shutdown", {"error": str(e)})
+            
+            log_action("Trading bot stopped successfully")
             
         except Exception as e:
             log_error("Error stopping trading bot", {"error": str(e)})
+    
+    async def stop_async(self):
+        """Stop the trading bot (async version)"""
+        try:
+            self.is_running = False
+            log_action("Trading bot stopping (async)...")
+            
+            # Close all positions
+            if self.oanda_client:
+                try:
+                    positions = self.oanda_client.get_positions()
+                    for position in positions:
+                        self.oanda_client.close_position(position['instrument'])
+                except Exception as e:
+                    log_error("Error closing positions during async shutdown", {"error": str(e)})
+            
+            # Save final state
+            try:
+                save_state(self.state)
+            except Exception as e:
+                log_error("Error saving state during async shutdown", {"error": str(e)})
+            
+            log_action("Trading bot stopped successfully (async)")
+            
+        except Exception as e:
+            log_error("Error stopping trading bot (async)", {"error": str(e)})
     
     def _start_telegram_bot(self):
         """Start Telegram bot polling"""
@@ -155,13 +189,32 @@ class TradingBot:
         """Main trading loop (async version)"""
         log_action("Starting async main trading loop")
         
+        # Track last execution times for periodic tasks
+        last_news_scrape = 0
+        last_price_scan = 0
+        last_heartbeat = 0
+        last_cleanup = 0
+        
         while self.is_running:
             try:
-                # Run periodic tasks
-                await self._scrape_news_async()
-                await self._scan_prices_async()
-                await self._send_heartbeat_async()
-                await self._cleanup_logs_async()
+                current_time = time.time()
+                
+                # Run periodic tasks based on intervals
+                if current_time - last_news_scrape >= NEWS_SCRAPE_INTERVAL:
+                    await self._scrape_news_async()
+                    last_news_scrape = current_time
+                
+                if current_time - last_price_scan >= PRICE_SCAN_INTERVAL:
+                    await self._scan_prices_async()
+                    last_price_scan = current_time
+                
+                if current_time - last_heartbeat >= HEARTBEAT_INTERVAL:
+                    await self._send_heartbeat_async()
+                    last_heartbeat = current_time
+                
+                if current_time - last_cleanup >= LOG_CLEANUP_INTERVAL:
+                    await self._cleanup_logs_async()
+                    last_cleanup = current_time
                 
                 # Check for trading opportunities
                 if self._should_trade():
@@ -170,6 +223,9 @@ class TradingBot:
                 # Small delay to prevent excessive CPU usage
                 await asyncio.sleep(1)
                 
+            except asyncio.CancelledError:
+                log_action("Async trading loop cancelled")
+                break
             except Exception as e:
                 log_error("Async trading loop error", {"error": str(e)})
                 await asyncio.sleep(5)  # Wait before retrying
@@ -628,35 +684,63 @@ class TradingBot:
 
 async def async_main():
     """Async main entry point"""
+    bot = None
+    tasks = []
     try:
         # Create and start the trading bot
         bot = TradingBot()
         main.bot = bot  # Store reference for signal handler
         
-        # Create tasks list
-        tasks = []
+        log_action("Starting trading bot in async mode")
+        
+        # Start the bot
+        bot.is_running = True
         
         # Start Telegram bot polling in the main event loop
         if bot.telegram_bot:
+            log_action("Starting Telegram bot polling")
             # Start Telegram bot polling as a background task
             telegram_task = asyncio.create_task(bot.telegram_bot.start_polling())
             tasks.append(telegram_task)
         
         # Start main trading loop as a background task
+        log_action("Starting async trading loop")
         trading_task = asyncio.create_task(bot._run_trading_loop_async())
         tasks.append(trading_task)
         
-        # Wait for all tasks
+        # Wait for all tasks to complete (they should run indefinitely)
         if tasks:
-            await asyncio.gather(*tasks)
+            log_action(f"Running {len(tasks)} async tasks")
+            await asyncio.gather(*tasks, return_exceptions=True)
         else:
+            log_action("No async tasks available, falling back to synchronous mode")
             # Fallback to synchronous trading loop if no async tasks
             bot._run_trading_loop()
         
+    except asyncio.CancelledError:
+        log_action("Async main cancelled")
+        # Cancel all running tasks
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        # Wait for tasks to complete cancellation
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if bot:
+            await bot.stop_async()
     except Exception as e:
         logger.error(f"Async main error: {e}")
         log_error("Async main application error", {"error": str(e)})
-        sys.exit(1)
+        # Cancel all running tasks
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        # Wait for tasks to complete cancellation
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if bot:
+            await bot.stop_async()
+        raise
 
 def main():
     """Main entry point"""
@@ -664,21 +748,31 @@ def main():
         # Set up signal handlers for graceful shutdown
         def signal_handler(signum, frame):
             logger.info(f"Received shutdown signal {signum}")
-            # Graceful shutdown
+            log_action(f"Shutdown signal received: {signum}")
+            # Graceful shutdown - set the bot to stop
             if hasattr(main, 'bot') and main.bot:
-                main.bot.stop()
-            sys.exit(0)
+                main.bot.is_running = False
+            # The async loop will handle the actual shutdown
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGHUP, signal_handler)  # For systemd reload
         
-        # Run the async main function
+        log_action("Starting trading bot application")
+        
+        # Run the async main function - this will block until completion
         asyncio.run(async_main())
         
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received")
+        log_action("Application stopped by keyboard interrupt")
+        if hasattr(main, 'bot') and main.bot:
+            main.bot.is_running = False
     except Exception as e:
         logger.error(f"Main error: {e}")
         log_error("Main application error", {"error": str(e)})
+        if hasattr(main, 'bot') and main.bot:
+            main.bot.is_running = False
         sys.exit(1)
 
 if __name__ == "__main__":
