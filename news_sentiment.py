@@ -199,7 +199,16 @@ class NewsSentimentAnalyzer:
             # Scrape news articles
             articles = self.scrape_news_sources()
             if not articles:
-                return {"sentiment": "neutral", "score": 0.0, "confidence": 0.0, "articles_analyzed": 0}
+                logger.warning("No articles found for sentiment analysis")
+                return {
+                    "sentiment": "neutral", 
+                    "score": 0.0, 
+                    "confidence": 0.0, 
+                    "articles_analyzed": 0,
+                    "volatility_score": 0.0,
+                    "currency_pairs_mentioned": [],
+                    "timestamp": datetime.now().isoformat()
+                }
             
             # Analyze each article
             sentiment_scores = []
@@ -207,22 +216,32 @@ class NewsSentimentAnalyzer:
             forex_impacts = []
             
             for article in articles:
-                # Combine title and content
-                full_text = f"{article.get('title', '')} {article.get('content', '')}"
-                
-                # Analyze sentiment
-                sentiment_result = self.analyze_sentiment(full_text)
-                sentiment_scores.append(sentiment_result["score"])
-                
-                # Detect volatility
-                volatility_result = self.detect_volatility_keywords(full_text)
-                volatility_scores.append(volatility_result["volatility_score"])
-                
-                # Extract forex impact
-                forex_result = self.extract_forex_impact(full_text)
-                forex_impacts.append(forex_result)
+                try:
+                    # Combine title and content
+                    title = article.get('title', '')
+                    content = article.get('content', '')
+                    full_text = f"{title} {content}"
+                    
+                    # Analyze sentiment
+                    sentiment_result = self.analyze_sentiment(full_text)
+                    if sentiment_result and "score" in sentiment_result:
+                        sentiment_scores.append(sentiment_result["score"])
+                    
+                    # Detect volatility
+                    volatility_result = self.detect_volatility_keywords(full_text)
+                    if volatility_result and "volatility_score" in volatility_result:
+                        volatility_scores.append(volatility_result["volatility_score"])
+                    
+                    # Extract forex impact
+                    forex_result = self.extract_forex_impact(full_text)
+                    if forex_result:
+                        forex_impacts.append(forex_result)
+                        
+                except Exception as e:
+                    logger.warning(f"Error analyzing article: {e}")
+                    continue
             
-            # Calculate aggregate scores
+            # Calculate aggregate scores with safe defaults
             if sentiment_scores:
                 avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
                 sentiment_confidence = min(len(sentiment_scores) / 10, 1.0)  # More articles = higher confidence
@@ -246,7 +265,8 @@ class NewsSentimentAnalyzer:
             # Collect all currency pairs mentioned
             all_currency_pairs = set()
             for impact in forex_impacts:
-                all_currency_pairs.update(impact.get("currency_pairs", []))
+                if isinstance(impact, dict) and "currency_pairs" in impact:
+                    all_currency_pairs.update(impact.get("currency_pairs", []))
             
             result = {
                 "sentiment": overall_sentiment,
@@ -262,8 +282,18 @@ class NewsSentimentAnalyzer:
             return result
             
         except Exception as e:
+            logger.error(f"News sentiment analysis failed: {e}")
             log_error("News sentiment analysis failed", {"error": str(e)})
-            return {"sentiment": "neutral", "score": 0.0, "confidence": 0.0, "articles_analyzed": 0}
+            # Return safe default values
+            return {
+                "sentiment": "neutral", 
+                "score": 0.0, 
+                "confidence": 0.0, 
+                "articles_analyzed": 0,
+                "volatility_score": 0.0,
+                "currency_pairs_mentioned": [],
+                "timestamp": datetime.now().isoformat()
+            }
     
     def get_sentiment_summary(self) -> str:
         """Get a human-readable sentiment summary"""
@@ -276,13 +306,15 @@ class NewsSentimentAnalyzer:
                 "neutral": "➡️"
             }
             
-            emoji = sentiment_emoji.get(analysis["sentiment"], "➡️")
+            # Safe access to analysis dictionary
+            sentiment = analysis.get("sentiment", "neutral")
+            emoji = sentiment_emoji.get(sentiment, "➡️")
             
-            summary = f"{emoji} News Sentiment: {analysis['sentiment'].upper()}\n"
-            summary += f"Score: {analysis['score']:.3f}\n"
-            summary += f"Confidence: {analysis['confidence']:.1%}\n"
-            summary += f"Volatility: {analysis['volatility_score']:.1%}\n"
-            summary += f"Articles Analyzed: {analysis['articles_analyzed']}\n"
+            summary = f"{emoji} News Sentiment: {sentiment.upper()}\n"
+            summary += f"Score: {analysis.get('score', 0.0):.3f}\n"
+            summary += f"Confidence: {analysis.get('confidence', 0.0):.1%}\n"
+            summary += f"Volatility: {analysis.get('volatility_score', 0.0):.1%}\n"
+            summary += f"Articles Analyzed: {analysis.get('articles_analyzed', 0)}\n"
             
             if analysis.get("currency_pairs_mentioned"):
                 summary += f"Pairs Mentioned: {', '.join(analysis['currency_pairs_mentioned'])}"
@@ -302,10 +334,16 @@ class NewsSentimentAnalyzer:
             # 2. Very negative sentiment (< -0.3)
             # 3. High confidence in extreme sentiment
             
-            if analysis["volatility_score"] > 0.7:
+            # Safe access to volatility_score with default value
+            volatility_score = analysis.get("volatility_score", 0.0)
+            if volatility_score > 0.7:
+                logger.warning(f"Trading avoided due to high volatility score: {volatility_score}")
                 return True
             
-            if analysis["sentiment"] == "negative" and analysis["score"] < -0.3:
+            sentiment = analysis.get("sentiment", "neutral")
+            score = analysis.get("score", 0.0)
+            if sentiment == "negative" and score < -0.3:
+                logger.warning(f"Trading avoided due to negative sentiment: {score}")
                 return True
             
             return False

@@ -38,18 +38,15 @@ git clone <repository-url>
 cd ai-forex-trading-bot
 ```
 
-### 2. Install Dependencies
+### 2. Run Deployment Script
 ```bash
-pip install -r requirements.txt
+./deploy.sh
 ```
 
-### 3. Set Environment Variables
+### 3. Set Up Environment Variables
 ```bash
-export HUGGINGFACE_API_KEY="your_huggingface_api_key"
-export TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
-export TELEGRAM_CHAT_ID="your_telegram_chat_id"
-export OANDA_API_KEY="your_oanda_api_key"
-export OANDA_ACCOUNT_ID="your_oanda_account_id"
+./setup_env.sh
+nano .env  # Fill in your API keys
 ```
 
 ### 4. Validate Configuration
@@ -59,9 +56,20 @@ python -c "from config import validate_config; validate_config(); print('✅ Con
 
 ## 🚀 Usage
 
-### Start the Bot
+### Deploy and Start the Bot
 ```bash
-python trading_bot.py
+# 1. Run the deployment script
+./deploy.sh
+
+# 2. Set up environment variables
+cp .env.template .env
+nano .env  # Fill in your API keys
+
+# 3. Start the bot as a systemd service
+./start_bot.sh
+
+# 4. Monitor the bot
+./monitor_bot.sh
 ```
 
 ### Telegram Commands
@@ -171,19 +179,54 @@ HEARTBEAT_INTERVAL = 5 * 60  # 5 minutes
 
 ## 📝 Logging
 
-The bot maintains comprehensive logs:
-- `trading_bot.log`: Main application log
+The bot uses systemd journald for comprehensive logging:
+- All logs are captured by systemd and can be viewed with `journalctl`
 - `trading_log.json`: Structured action log
 - `error_log.json`: Error tracking
 - `bot_state.json`: Persistent state
 
+### Viewing Logs
+```bash
+# View all bot logs
+sudo journalctl -u forex-bot
+
+# Follow logs in real-time
+sudo journalctl -u forex-bot -f
+
+# View recent logs
+sudo journalctl -u forex-bot -n 50
+
+# View error logs only
+sudo journalctl -u forex-bot -p err
+```
+
 ## 🔍 Monitoring
 
 ### Real-time Monitoring
+- Systemd service monitoring with automatic restarts
 - Telegram notifications for all trades
 - Heartbeat messages every 5 minutes
 - Performance metrics tracking
 - Error alerting and recovery
+- Comprehensive logging via journald
+
+### Service Management
+```bash
+# Start the service
+sudo systemctl start forex-bot
+
+# Stop the service
+sudo systemctl stop forex-bot
+
+# Check service status
+sudo systemctl status forex-bot
+
+# Enable auto-start on boot
+sudo systemctl enable forex-bot
+
+# View real-time logs
+sudo journalctl -u forex-bot -f
+```
 
 ### Performance Metrics
 - Win rate calculation
@@ -195,41 +238,87 @@ The bot maintains comprehensive logs:
 
 ### Common Issues
 
-1. **API Connection Errors**
-   - Verify API keys are correct
+1. **Service Not Starting**
+   ```bash
+   # Check service status
+   sudo systemctl status forex-bot
+   
+   # View error logs
+   sudo journalctl -u forex-bot -p err
+   
+   # Check environment variables
+   ./status_bot.sh
+   ```
+
+2. **API Connection Errors**
+   - Verify API keys in `.env` file
    - Check internet connection
    - Ensure OANDA account is active
 
-2. **Telegram Bot Issues**
+3. **Telegram Bot Issues**
    - Verify bot token and chat ID
    - Check bot permissions
    - Ensure bot is not blocked
 
-3. **Memory Issues**
-   - Monitor system resources
-   - Reduce log retention period
-   - Restart bot if needed
+4. **Service Crashes**
+   ```bash
+   # Check recent logs
+   sudo journalctl -u forex-bot -n 50
+   
+   # Restart service
+   sudo systemctl restart forex-bot
+   
+   # Check for memory issues
+   free -h
+   ```
 
-4. **Trading Errors**
-   - Check account balance
-   - Verify spread conditions
-   - Review risk parameters
+5. **Environment Variable Issues**
+   ```bash
+   # Re-run environment setup
+   ./setup_env.sh
+   
+   # Check if .env file exists
+   ls -la .env
+   ```
 
 ### Debug Mode
 ```bash
-# Enable debug logging
-export PYTHONPATH=.
-python -c "import logging; logging.basicConfig(level=logging.DEBUG)"
+# Run bot directly for debugging
+source venv/bin/activate
 python trading_bot.py
 ```
 
-## 📞 Support
+### Health Monitoring
+```bash
+# Enable health check timer
+sudo systemctl enable forex-bot.timer
+sudo systemctl start forex-bot.timer
+
+# Check timer status
+sudo systemctl status forex-bot.timer
+```
+
+## � Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `deploy.sh` | Complete deployment script for Ubuntu |
+| `setup_env.sh` | Set up environment variables for systemd |
+| `start_bot.sh` | Start the bot as systemd service |
+| `stop_bot.sh` | Stop the bot service gracefully |
+| `status_bot.sh` | Comprehensive status and health check |
+| `monitor_bot.sh` | Real-time monitoring with journalctl |
+| `backup_bot.sh` | Create backup of bot files |
+| `cleanup.sh` | Clean up unnecessary files |
+
+## �📞 Support
 
 For issues and support:
-1. Check the logs for error details
-2. Verify all environment variables
+1. Check the logs: `sudo journalctl -u forex-bot`
+2. Verify environment variables: `./status_bot.sh`
 3. Test API connections individually
 4. Review configuration parameters
+5. Check service status: `sudo systemctl status forex-bot`
 
 ## ⚠️ Disclaimer
 
