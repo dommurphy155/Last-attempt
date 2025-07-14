@@ -13,7 +13,7 @@ WorkingDirectory=/workspace
 Environment=PATH=/workspace/venv/bin
 Environment=PYTHONPATH=/workspace
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/workspace/venv/bin/python trading_bot.py
+ExecStart=/workspace/venv/bin/python bot_runner.py
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=10

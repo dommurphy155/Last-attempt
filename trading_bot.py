@@ -777,16 +777,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Already running: Schedule main() on current loop
-            import nest_asyncio
-            nest_asyncio.apply()
-            loop.create_task(main())
-        else:
-            loop.run_until_complete(main())
-    except Exception as e:
-        logger.exception("Fatal error in main event loop", exc_info=e)
-        sys.exit(1)
