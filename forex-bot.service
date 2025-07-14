@@ -1,6 +1,5 @@
 [Unit]
-Description=AI Forex Trading Bot
-Documentation=https://github.com/your-repo/ai-forex-trading-bot
+Description=Forex Demo Trading Bot
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -13,6 +12,10 @@ WorkingDirectory=/workspace
 Environment=PATH=/workspace/venv/bin
 Environment=PYTHONPATH=/workspace
 Environment=PYTHONUNBUFFERED=1
+Environment=TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+Environment=TELEGRAM_CHAT_ID=YOUR_TELEGRAM_CHAT_ID
+Environment=OANDA_API_KEY=YOUR_OANDA_API_KEY
+Environment=OANDA_ACCOUNT_ID=YOUR_OANDA_ACCOUNT_ID
 ExecStart=/workspace/venv/bin/python bot_runner.py
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
@@ -20,36 +23,18 @@ RestartSec=10
 StartLimitBurst=5
 StartLimitInterval=60
 
-# Logging configuration
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=forex-bot
 
-# Security settings
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/workspace/logs /workspace/data /workspace/bot_state.json /workspace/trading_log.json /workspace/error_log.json
 
-# Resource limits
 LimitNOFILE=65536
 MemoryMax=1G
 CPUQuota=200%
-
-# Health check
-ExecReload=/bin/kill -HUP $MAINPID
-Restart=always
-RestartSec=10
-StartLimitBurst=5
-StartLimitInterval=60
-
-# Environment variables (set these via systemctl set-environment or drop-in files)
-# Environment=HUGGINGFACE_API_KEY=your_key_here
-# Environment=TELEGRAM_BOT_TOKEN=your_token_here
-# Environment=TELEGRAM_CHAT_ID=your_chat_id_here
-# Environment=OANDA_API_KEY=your_key_here
-# Environment=OANDA_ACCOUNT_ID=your_account_id_here
 
 [Install]
 WantedBy=multi-user.target
