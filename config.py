@@ -3,7 +3,6 @@ import json
 from datetime import datetime, timedelta
 
 # API Keys and Tokens
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 OANDA_API_KEY = os.getenv("OANDA_API_KEY")
@@ -153,7 +152,6 @@ def get_default_state():
 def validate_config():
     """Validate all required environment variables are set"""
     required_vars = [
-        "HUGGINGFACE_API_KEY",
         "TELEGRAM_BOT_TOKEN", 
         "TELEGRAM_CHAT_ID",
         "OANDA_API_KEY",
