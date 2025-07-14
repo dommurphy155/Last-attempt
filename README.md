@@ -21,7 +21,6 @@ A sophisticated AI-powered forex trading bot that combines technical analysis, n
 - Ubuntu 20.04+ (recommended)
 - OANDA demo account
 - Telegram bot token
-- HuggingFace API key
 
 ### 2. Installation
 
@@ -30,41 +29,41 @@ A sophisticated AI-powered forex trading bot that combines technical analysis, n
 git clone <your-repo-url>
 cd ai-forex-trading-bot
 
-# Run deployment script
-./deploy.sh
+# Create & activate venv
+python3 -m venv venv
+source venv/bin/activate
+
+# Upgrade pip & install pinned deps
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
 ### 3. Configuration
 
+Set your credentials in the shell (no .env file):
+
 ```bash
-# Copy environment template
-cp .env.template .env
-
-# Edit with your API keys
-nano .env
-```
-
-Required environment variables:
-```env
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-TELEGRAM_CHAT_ID=your_telegram_chat_id_here
-OANDA_API_KEY=your_oanda_api_key_here
-OANDA_ACCOUNT_ID=your_oanda_account_id_here
+export TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
+export TELEGRAM_CHAT_ID="your_telegram_chat_id_here"
+export OANDA_API_KEY="your_oanda_api_key_here"
+export OANDA_ACCOUNT_ID="your_oanda_account_id_here"
 ```
 
 ### 4. Test Installation
 
 ```bash
-# Test all components
-python3 test_bot.py
+# Syntax check all .py files
+for f in *.py; do python3 -m py_compile "$f" || { echo "❌ Syntax error in $f"; exit 1; }; done
+
+# Import test all modules
+for f in *.py; do mod="${f%.py}"; python3 -c "import $mod" || { echo "❌ Import error in $mod"; exit 1; }; done
 ```
 
 ### 5. Start the Bot
 
 ```bash
 # Start via systemd (recommended)
-./start_bot.sh
+sudo systemctl start forex-bot.service
 
 # Or run directly
 python3 bot_runner.py
@@ -209,7 +208,7 @@ python3 -c "import oanda_client; print('OANDA client OK')"
 
 ## Security
 
-- **API Key Protection**: Store keys in environment variables
+- **API Key Protection**: Store keys in environment variables (never in code or .env files)
 - **Network Security**: Use HTTPS for all API communications
 - **Access Control**: Restrict bot access to authorized users
 - **Audit Logging**: Complete audit trail of all actions

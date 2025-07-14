@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 # Removed: import torch
 from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from config import NEWS_SOURCES, SENTIMENT_MODELS, HUGGINGFACE_API_KEY, VOLATILITY_KEYWORDS
+from config import NEWS_SOURCES, VOLATILITY_KEYWORDS
 from utils import sanitize_text, extract_currency_pairs, log_error, log_action
 
 logger = logging.getLogger(__name__)
@@ -21,18 +21,9 @@ class NewsSentimentAnalyzer:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
         
-        self.sentiment_models = {}
         self.vader_analyzer = SentimentIntensityAnalyzer()
         self.last_scrape_time = None
         self.scraped_articles = set()
-        
-        # Initialize sentiment models
-        self._initialize_sentiment_models()
-    
-    def _initialize_sentiment_models(self):
-        """Initialize sentiment analysis models"""
-        # Removed HuggingFace model loading for lightweight version
-        self.sentiment_models = {}
     
     def scrape_news_sources(self) -> List[Dict[str, Any]]:
         """Scrape news from all sources"""
