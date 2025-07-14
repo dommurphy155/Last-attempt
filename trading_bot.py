@@ -11,12 +11,11 @@ import sys
 from config import (
     TRADING_PAIRS, NEWS_SCRAPE_INTERVAL, PRICE_SCAN_INTERVAL, 
     HEARTBEAT_INTERVAL, LOG_CLEANUP_INTERVAL, validate_config,
-    load_state, save_state, get_default_state
+    load_state, save_state, get_default_state, demo_mode
 )
 from utils import log_action, log_error, cleanup_old_logs, calculate_confidence_score
 from oanda_client import OandaClient
 from technical_analysis import TechnicalAnalyzer
-from news_sentiment import NewsSentimentAnalyzer
 from telegram_bot import TelegramBot
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,6 @@ class TradingBot:
         self.state = load_state()
         self.oanda_client = None
         self.technical_analyzer = None
-        self.news_analyzer = None
         self.telegram_bot = None
         
         # Performance tracking
@@ -51,14 +49,10 @@ class TradingBot:
             # Initialize technical analyzer
             self.technical_analyzer = TechnicalAnalyzer()
             
-            # Initialize news sentiment analyzer
-            self.news_analyzer = NewsSentimentAnalyzer()
-            
             # Initialize Telegram bot
             self.telegram_bot = TelegramBot(
                 self.oanda_client, 
-                self.technical_analyzer, 
-                self.news_analyzer
+                self.technical_analyzer
             )
             
             log_action("Trading bot components initialized successfully")
@@ -246,10 +240,6 @@ class TradingBot:
                 log_action("Trading paused due to consecutive losses")
                 return False
             
-            # Check if we're in a high-impact news period
-            if self.news_analyzer.should_avoid_trading():
-                return False
-            
             # Check time-based restrictions
             now = datetime.utcnow()
             hour = now.hour
@@ -303,31 +293,21 @@ class TradingBot:
                 # Perform technical analysis
                 technical_analysis = self.technical_analyzer.get_comprehensive_analysis(candles)
                 
-                # Get news sentiment
-                sentiment_analysis = self.news_analyzer.analyze_news_sentiment()
-                
                 # Calculate overall confidence
                 technical_confidence = technical_analysis.get('confidence', 0.0)
-                sentiment_score = abs(sentiment_analysis.get('score', 0.0))
-                
-                # Combine technical and sentiment analysis
-                overall_confidence = calculate_confidence_score(
-                    technical_confidence, sentiment_score, 0.5
-                )
                 
                 # Check if this is a good opportunity
-                if (overall_confidence > best_confidence and 
-                    overall_confidence > 0.6 and 
+                if (technical_confidence > best_confidence and 
+                    technical_confidence > 0.6 and 
                     technical_analysis.get('signal') != 'neutral'):
                     
-                    best_confidence = overall_confidence
+                    best_confidence = technical_confidence
                     best_opportunity = {
                         'pair': pair,
                         'signal': technical_analysis.get('signal'),
-                        'confidence': overall_confidence,
+                        'confidence': best_confidence,
                         'price': prices[pair]['ask'],
-                        'technical_analysis': technical_analysis,
-                        'sentiment_analysis': sentiment_analysis
+                        'technical_analysis': technical_analysis
                     }
             
             # Execute trade if we found a good opportunity
@@ -370,31 +350,21 @@ class TradingBot:
                 # Perform technical analysis
                 technical_analysis = self.technical_analyzer.get_comprehensive_analysis(candles)
                 
-                # Get news sentiment
-                sentiment_analysis = self.news_analyzer.analyze_news_sentiment()
-                
                 # Calculate overall confidence
                 technical_confidence = technical_analysis.get('confidence', 0.0)
-                sentiment_score = abs(sentiment_analysis.get('score', 0.0))
-                
-                # Combine technical and sentiment analysis
-                overall_confidence = calculate_confidence_score(
-                    technical_confidence, sentiment_score, 0.5
-                )
                 
                 # Check if this is a good opportunity
-                if (overall_confidence > best_confidence and 
-                    overall_confidence > 0.6 and 
+                if (technical_confidence > best_confidence and 
+                    technical_confidence > 0.6 and 
                     technical_analysis.get('signal') != 'neutral'):
                     
-                    best_confidence = overall_confidence
+                    best_confidence = technical_confidence
                     best_opportunity = {
                         'pair': pair,
                         'signal': technical_analysis.get('signal'),
-                        'confidence': overall_confidence,
+                        'confidence': best_confidence,
                         'price': prices[pair]['ask'],
-                        'technical_analysis': technical_analysis,
-                        'sentiment_analysis': sentiment_analysis
+                        'technical_analysis': technical_analysis
                     }
             
             # Execute trade if we found a good opportunity
@@ -431,40 +401,44 @@ class TradingBot:
             else:
                 return
             
-            # Place the order
-            order_result = self.oanda_client.place_order(pair, units, side)
-            
-            if order_result:
-                # Update tracking variables
-                self.daily_trades += 1
-                self.last_trade_time = datetime.now()
-                
-                # Log the trade
-                trade_info = {
-                    'pair': pair,
-                    'side': side,
-                    'units': units,
-                    'price': price,
-                    'confidence': confidence,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-                log_action("Trade executed", trade_info)
-                
-                # Send Telegram notification
-                if self.telegram_bot:
-                    try:
-                        # Create a new event loop for the notification
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        loop.run_until_complete(self.telegram_bot.send_trade_alert(trade_info))
-                        loop.close()
-                    except Exception as e:
-                        log_error("Failed to send trade alert", {"error": str(e)})
-                
-                # Update state
-                self.state['trades'].append(trade_info)
-                save_state(self.state)
+            if demo_mode:
+                # Only allow demo trades
+                order_result = self.oanda_client.place_order(pair, units, side)
+                if order_result:
+                    # Update tracking variables
+                    self.daily_trades += 1
+                    self.last_trade_time = datetime.now()
+                    
+                    # Log the trade
+                    trade_info = {
+                        'pair': pair,
+                        'side': side,
+                        'units': units,
+                        'price': price,
+                        'confidence': confidence,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    
+                    log_action("Trade executed", trade_info)
+                    
+                    # Send Telegram notification
+                    if self.telegram_bot:
+                        try:
+                            # Create a new event loop for the notification
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(self.telegram_bot.send_trade_alert(trade_info))
+                            loop.close()
+                        except Exception as e:
+                            log_error("Failed to send trade alert", {"error": str(e)})
+                    
+                    # Update state
+                    self.state['trades'].append(trade_info)
+                    save_state(self.state)
+                else:
+                    log_error("Demo trade execution failed", {"pair": pair, "side": side, "units": units})
+            else:
+                logger.warning("Live trading blocked in demo mode.")
             
         except Exception as e:
             log_error("Trade execution error", {"error": str(e)})
@@ -496,33 +470,37 @@ class TradingBot:
             else:
                 return
             
-            # Place the order
-            order_result = self.oanda_client.place_order(pair, units, side)
-            
-            if order_result:
-                # Update tracking variables
-                self.daily_trades += 1
-                self.last_trade_time = datetime.now()
-                
-                # Log the trade
-                trade_info = {
-                    'pair': pair,
-                    'side': side,
-                    'units': units,
-                    'price': price,
-                    'confidence': confidence,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-                log_action("Async trade executed", trade_info)
-                
-                # Send Telegram notification
-                if self.telegram_bot:
-                    await self.telegram_bot.send_trade_alert(trade_info)
-                
-                # Update state
-                self.state['trades'].append(trade_info)
-                save_state(self.state)
+            if demo_mode:
+                # Only allow demo trades
+                order_result = self.oanda_client.place_order(pair, units, side)
+                if order_result:
+                    # Update tracking variables
+                    self.daily_trades += 1
+                    self.last_trade_time = datetime.now()
+                    
+                    # Log the trade
+                    trade_info = {
+                        'pair': pair,
+                        'side': side,
+                        'units': units,
+                        'price': price,
+                        'confidence': confidence,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    
+                    log_action("Async trade executed", trade_info)
+                    
+                    # Send Telegram notification
+                    if self.telegram_bot:
+                        await self.telegram_bot.send_trade_alert(trade_info)
+                    
+                    # Update state
+                    self.state['trades'].append(trade_info)
+                    save_state(self.state)
+                else:
+                    log_error("Demo trade execution failed", {"pair": pair, "side": side, "units": units})
+            else:
+                logger.warning("Live trading blocked in demo mode.")
             
         except Exception as e:
             log_error("Async trade execution error", {"error": str(e)})
@@ -531,14 +509,12 @@ class TradingBot:
         """Scrape and analyze news"""
         try:
             log_action("Starting news scraping")
-            sentiment_result = self.news_analyzer.analyze_news_sentiment()
             
             # Update state with sentiment
-            self.state['sentiment_scores'] = sentiment_result
             self.state['last_news_scrape'] = datetime.now().isoformat()
             save_state(self.state)
             
-            log_action("News scraping completed", sentiment_result)
+            log_action("News scraping completed")
             
         except Exception as e:
             log_error("News scraping error", {"error": str(e)})
@@ -547,14 +523,12 @@ class TradingBot:
         """Scrape and analyze news (async version)"""
         try:
             log_action("Starting async news scraping")
-            sentiment_result = self.news_analyzer.analyze_news_sentiment()
             
             # Update state with sentiment
-            self.state['sentiment_scores'] = sentiment_result
             self.state['last_news_scrape'] = datetime.now().isoformat()
             save_state(self.state)
             
-            log_action("Async news scraping completed", sentiment_result)
+            log_action("Async news scraping completed")
             
         except Exception as e:
             log_error("Async news scraping error", {"error": str(e)})

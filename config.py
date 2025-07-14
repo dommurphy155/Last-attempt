@@ -58,14 +58,6 @@ NEWS_SOURCES = [
     "https://www.ft.com/currencies"
 ]
 
-SENTIMENT_MODELS = [
-    "cardiffnlp/twitter-roberta-base-sentiment-latest",
-    "ProsusAI/finbert",
-    "microsoft/DialoGPT-medium",
-    "distilbert-base-uncased",
-    "bert-base-uncased"
-]
-
 # Time Intervals
 NEWS_SCRAPE_INTERVAL = 12 * 60  # 12 minutes
 PRICE_SCAN_INTERVAL = 7  # 7 seconds
@@ -114,6 +106,8 @@ HIGH_IMPACT_EVENTS = [
     "Non-Farm Payrolls", "CPI", "GDP", "Interest Rate Decision",
     "FOMC", "ECB Meeting", "BOE Meeting", "Employment Report"
 ]
+
+demo_mode = True
 
 def load_state():
     """Load bot state from JSON file"""

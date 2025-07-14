@@ -8,18 +8,15 @@ from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_COMMANDS
 from utils import log_action, log_error, get_recent_logs, format_currency, format_percentage
 from oanda_client import OandaClient
 from technical_analysis import TechnicalAnalyzer
-from news_sentiment import NewsSentimentAnalyzer
 
 logger = logging.getLogger(__name__)
 
 class TelegramBot:
-    def __init__(self, oanda_client: OandaClient, technical_analyzer: TechnicalAnalyzer, 
-                 news_analyzer: NewsSentimentAnalyzer):
+    def __init__(self, oanda_client: OandaClient, technical_analyzer: TechnicalAnalyzer):
         self.bot_token = TELEGRAM_BOT_TOKEN
         self.chat_id = TELEGRAM_CHAT_ID
         self.oanda_client = oanda_client
         self.technical_analyzer = technical_analyzer
-        self.news_analyzer = news_analyzer
         self.application = None
         self.last_message_time = {}
         
@@ -73,9 +70,6 @@ class TelegramBot:
             account_info = self.oanda_client.get_account_info()
             positions = self.oanda_client.get_positions()
             
-            # Get recent sentiment
-            sentiment_summary = self.news_analyzer.get_sentiment_summary()
-            
             # Calculate win rate
             total_trades = account_info.get('realized_pnl', 0)
             win_rate = "N/A"  # Placeholder - implement actual calculation
@@ -86,10 +80,6 @@ class TelegramBot:
             status_message += f"💵 Realized P&L: {format_currency(account_info.get('realized_pnl', 0))}\n"
             status_message += f"📊 Open Positions: {len(positions)}\n"
             status_message += f"🎯 Win Rate: {win_rate}\n\n"
-            
-            # Add sentiment info
-            status_message += "📰 NEWS SENTIMENT:\n"
-            status_message += sentiment_summary + "\n\n"
             
             # Add recent activity
             recent_logs = get_recent_logs(5)
@@ -145,22 +135,15 @@ class TelegramBot:
                     if not self.oanda_client.is_spread_acceptable(instrument):
                         continue
                     
-                    # Check sentiment
-                    sentiment = self.news_analyzer.analyze_news_sentiment()
-                    
                     # Calculate overall confidence
                     technical_confidence = analysis.get('confidence', 0.0)
-                    sentiment_score = sentiment.get('score', 0.0)
                     
-                    # Combine technical and sentiment analysis
-                    overall_confidence = (technical_confidence * 0.7) + (abs(sentiment_score) * 0.3)
-                    
-                    if overall_confidence > best_confidence and overall_confidence > 0.6:
-                        best_confidence = overall_confidence
+                    if technical_confidence > best_confidence and technical_confidence > 0.6:
+                        best_confidence = technical_confidence
                         best_trade = {
                             'instrument': instrument,
                             'signal': analysis.get('signal', 'neutral'),
-                            'confidence': overall_confidence,
+                            'confidence': best_confidence,
                             'price': prices[instrument]['ask'],
                             'analysis': analysis
                         }
