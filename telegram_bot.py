@@ -514,12 +514,22 @@ class TelegramBot:
                 except RuntimeError:
                     logger.info("No running event loop, creating new one")
                 
-                await self.application.run_polling()
+                # Start polling - this will run indefinitely until stopped
+                await self.application.run_polling(
+                    allowed_updates=Update.ALL_TYPES,
+                    drop_pending_updates=True,
+                    close_loop=False
+                )
                 logger.info("Telegram bot polling started successfully")
                 log_action("Telegram bot polling started successfully")
             else:
                 logger.error("Telegram application not initialized")
                 log_error("Telegram application not initialized")
+                raise RuntimeError("Telegram application not initialized")
+        except asyncio.CancelledError:
+            logger.info("Telegram bot polling cancelled")
+            log_action("Telegram bot polling cancelled")
+            raise
         except Exception as e:
             logger.error(f"Failed to start Telegram bot polling: {e}")
             log_error("Telegram bot polling failed", {"error": str(e)})
